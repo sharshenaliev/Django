@@ -26,13 +26,14 @@
         <div class="card text-bg-primary mb-3" style="max-width: 20rem;">
           <div class="card-header">{{ item.email }}</div>
           <div class="card-body">
-            <h6 class="card-title">{{ item.first_name }}</h6>
-            <h6 class="card-title">{{ item.last_name }}</h6>
-            <p class="card-text">
+              <h6 class="card-title">{{ item.first_name }}</h6>
+              <h6 class="card-title">{{ item.last_name }}</h6>
+              <h6 class="card-title">{{ item.organization }}</h6>
+              <p class="card-text">
                 Дата создания: {{ item.date_joined|date:"Y-m-d H:i" }}<br>
                 Опозданий: {{ item.lateness }}<br>
                 Вовремя: {{ item.betimes }}
-            </p>
+              </p>
           </div>
         </div>
         {% endfor %}

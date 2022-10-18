@@ -1,14 +1,16 @@
 from django.shortcuts import render, redirect
 from .models import *
 from .forms import CustomUserCreationForm, CustomUserLoginForm
-from django.contrib import messages
+from django.contrib import messages, sessions
 from django.contrib.auth import get_user_model, login, logout
 from django.utils.timezone import now
 from django.core.paginator import Paginator
-from datetime import timedelta, time, datetime
+from datetime import timedelta, datetime
 from django.db.models import Q
+from django.http import StreamingHttpResponse
+import cv2
+import threading
 User = get_user_model()
-userid = 0
 
 
 def index(request):
@@ -30,7 +32,7 @@ def register(request):
         if form.is_valid():
             messages.success(request, 'Вы зарегистрировались!')
             form.save()
-            return redirect('login')
+            return redirect('home')
         else:
             messages.error(request, 'Ошибка')
     else:
@@ -46,9 +48,10 @@ def user_login(request):
         form = CustomUserLoginForm(data=request.POST)
         if form.is_valid():
             user = form.get_user()
+            login(request, user)
             start = Time.objects.create(user=CustomUser.objects.get(email=user))
-            global userid
-            userid = start.id
+            request.session['time_id'] = start.id
+            request.session.modified = True
             start.save()
             org = Organization.objects.get(title=user.organization)
             if datetime.time(now()) > org.start_time:
@@ -57,8 +60,7 @@ def user_login(request):
             else:
                 user.betimes += 1
                 user.save()
-            login(request, user)
-            return redirect('home')
+            return redirect('scan')
     else:
         form = CustomUserLoginForm()
     context = {
@@ -68,10 +70,24 @@ def user_login(request):
 
 
 def user_logout(request):
-    logout(request)
-    start = Time.objects.get(id=userid)
+    start = Time.objects.get(id=request.session.get('time_id'))
     d = now() - start.start_time
-    Time.objects.filter(id=userid).update(end_time=now(), day=d)
+    Time.objects.filter(id=request.session.get('time_id')).update(end_time=now(), day=d)
+    try:
+        month_id = Profile.objects.get(user=CustomUser(email=str(request.user)))
+        if month_id.month == int(datetime.today().strftime('%m')):
+            month_id.hours += d
+            month_id.save()
+        else:
+            month_id = Profile.objects.create(user=CustomUser.objects.get(email=str(request.user)),
+                                              month=int(datetime.today().strftime('%m')), hours=d)
+            month_id.save()
+    except:
+        month_id = Profile.objects.create(user=CustomUser.objects.get(email=str(request.user)),
+                                          month=int(datetime.today().strftime('%m')), hours=d)
+        month_id.save()
+    del request.session['time_id']
+    logout(request)
     return redirect('home')
 
 
@@ -106,3 +122,49 @@ def get_org(request, organization_id):
         'company': company
     }
     return render(request, template_name='worktimeapp/org.html', context=context)
+
+
+data = ''
+
+
+def scan(request):
+    if data == '':
+        cam = VideoCamera()
+        response = StreamingHttpResponse(gen(cam), content_type="multipart/x-mixed-replace;boundary=frame")
+    else:
+        response = redirect('logout')
+    return response
+
+
+class VideoCamera(object):
+    def __init__(self):
+        self.video = cv2.VideoCapture(0)
+        (self.grabbed, self.frame) = self.video.read()
+        threading.Thread(target=self.update, args=()).start()
+
+    def __del__(self):
+        self.video.release()
+        cv2.destroyAllWindows()
+
+    def get_frame(self):
+        image = self.frame
+        _, jpeg = cv2.imencode('.jpg', image)
+        return jpeg.tobytes()
+
+    def update(self):
+        detector = cv2.QRCodeDetector()
+        while True:
+            (self.grabbed, self.frame) = self.video.read()
+            clear_qrcode, img = self.video.read()
+            global data
+            data, bbox, clear_qrcode = detector.detectAndDecode(img)
+            if data:
+                print(data)
+                break
+
+
+def gen(camera):
+    while data == '':
+        frame = camera.get_frame()
+        yield(b'--frame\r\n'
+              b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n\r\n')

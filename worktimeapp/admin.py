@@ -25,3 +25,4 @@ class OrganizationAdmin(admin.ModelAdmin):
 admin.site.register(CustomUser, CustomUserAdmin)
 admin.site.register(Organization, OrganizationAdmin)
 admin.site.register(Time)
+admin.site.register(Profile)

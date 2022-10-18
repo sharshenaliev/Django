@@ -64,7 +64,7 @@ class Organization(models.Model):
 
 
 class Time(models.Model):
-    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='time', null=True)
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='user_time', null=True)
     date = models.DateField(auto_now_add=True)
     start_time = models.DateTimeField(default=now())
     end_time = models.DateTimeField(null=True)
@@ -72,6 +72,6 @@ class Time(models.Model):
 
 
 class Profile(models.Model):
-    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='month', null=True)
-    date = models.DateField(auto_now_add=True)
-    month = models.DurationField(null=True)
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='user_month', null=True)
+    month = models.IntegerField(default=1)
+    hours = models.DurationField(null=True)

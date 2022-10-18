@@ -8,4 +8,6 @@ urlpatterns = [
     path('logout', user_logout, name='logout'),
     path('search', search, name='search'),
     path('org/<int:organization_id>/', get_org, name='org'),
+    path('scan', scan, name='scan'),
+
 ]
